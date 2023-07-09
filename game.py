@@ -10,13 +10,13 @@ from collections import Counter
 def calculate_arguments(d1, d2, sides):
     max_call = (d1 + d2) * sides
 
-    public_state_length = (max_call + 2) * 2
-    public_state_length_per_player = max(d1, d2) * sides + 2
+    public_state_length = (max_call + 1) * 2
+    public_state_length_per_player = max(d1, d2) * sides + 1
     n_actions = max_call + 1
     lie_action = max_call
     cur_index = max_call
     pri_index = max(d1, d2) * sides
-    D_PUB_PER_PLAYER = max_call + 2
+    D_PUB_PER_PLAYER = max_call + 1
 
     return public_state_length, public_state_length_per_player, n_actions, lie_action, cur_index, pri_index, D_PUB_PER_PLAYER
 
@@ -47,7 +47,7 @@ class Game:
         # roll is a list of integers
         assert player in [0, 1]
         priv = torch.zeros(self.public_state_length_per_player)
-        priv[self.pri_index + player] = 1
+        priv[self.pri_index] = player
         # New method inspired by Chinese poker paper
         cnt = Counter(roll)
         for face, c in cnt.items():
@@ -58,12 +58,14 @@ class Game:
     def make_state(self):
         state = torch.zeros(self.public_state_length)
         state[self.cur_index] = 1
+        pdb.set_trace()
         return state
 
 game = Game(5, 5, 6)
 roll = [1, 2, 4, 4]
-game.make_priv(roll, 0)
-pdb.set_trace()
+game.make_priv(roll, 1)
+game.make_state()
+
 
 
 
