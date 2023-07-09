@@ -1,10 +1,17 @@
 import pdb
+import random
+import torch
+from torch import nn
+import itertools
+import numpy as np
+import math
+from collections import Counter
 
 def calculate_arguments(d1, d2, sides):
     max_call = (d1 + d2) * sides
 
     public_state_length = (max_call + 2) * 2
-    public_state_length_per_player = max(d1, d2) * sides
+    public_state_length_per_player = max(d1, d2) * sides + 2
     n_actions = max_call + 1
     lie_action = max_call
     cur_index = max_call
@@ -36,7 +43,26 @@ class Game:
             self.D_PUB_PER_PLAYER,
         ) = calculate_arguments(d1, d2, sides)
 
-game = Game(2, 3, 6)
+    def make_priv(self, roll, player):
+        # roll is a list of integers
+        assert player in [0, 1]
+        priv = torch.zeros(self.public_state_length_per_player)
+        priv[self.pri_index + player] = 1
+        # New method inspired by Chinese poker paper
+        cnt = Counter(roll)
+        for face, c in cnt.items():
+            for i in range(c):
+                priv[(face - 1) * max(self.d1, self.d1) + i] = 1    
+        return priv
+
+    def make_state(self):
+        state = torch.zeros(self.public_state_length)
+        state[self.cur_index] = 1
+        return state
+
+game = Game(5, 5, 6)
+roll = [1, 2, 4, 4]
+game.make_priv(roll, 0)
 pdb.set_trace()
 
 
