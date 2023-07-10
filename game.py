@@ -83,11 +83,28 @@ class Game:
 
     def _apply_action(self, state, action):
         player_next_to_act = self.get_player_turn(state)
-        print(player_next_to_act)
-        state[action + player_next_to_act * self.D_PUB_PER_PLAYER] = 1
+        state[action + player_next_to_act * self.public_state_length_per_player] = 1
         state[self.player_info_index] = 1 - state[self.player_info_index]
         return state
+    
+    def get_calls(self, state):
+        player_0_call_range = (
+            state[: self.public_state_length_per_player]
+        )
+        player_0_calls =  (player_0_call_range == 1).nonzero(as_tuple=True)[0].tolist()
+        player_1_call_range = (
+            state[self.public_state_length_per_player : self.lie_action]
+        )
+        player_1_calls =  (player_1_call_range == 1).nonzero(as_tuple=True)[0].tolist()
+        return player_0_calls, player_1_calls
 
+    # def get_last_call(self, state):
+    #     ids = self.get_calls(state)
+    #     if not ids:
+    #         return -1
+    #     return int(ids[-1])
+
+# For testing purposes:
 game = Game(5, 5, 6)
 
 roll1 = game.rolls(0)[23]
@@ -98,6 +115,10 @@ game.make_priv(roll2, 1)
 
 state = game.make_state()
 state = game.apply_action(state, 29)
+state = game.apply_action(state, 2)
+state = game.apply_action(state, 15)
+state = game.apply_action(state, 22)
+calls = game.get_calls(state)
 
 pdb.set_trace()
 
