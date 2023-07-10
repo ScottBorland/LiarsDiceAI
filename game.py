@@ -14,11 +14,12 @@ def calculate_arguments(d1, d2, sides):
     public_state_length_per_player = max(d1, d2) * sides + 1
     n_actions = max_call + 1
     lie_action = max_call
-    cur_index = max_call
+    # cur_index = max_call
     pri_index = max(d1, d2) * sides
+    player_info_index = public_state_length - 1
     D_PUB_PER_PLAYER = max_call + 1
 
-    return public_state_length, public_state_length_per_player, n_actions, lie_action, cur_index, pri_index, D_PUB_PER_PLAYER
+    return public_state_length, public_state_length_per_player, n_actions, lie_action, pri_index, player_info_index, D_PUB_PER_PLAYER
 
 class Game:
     def __init__(self, d1, d2, sides):
@@ -36,9 +37,10 @@ class Game:
             self.n_actions,
             # Integer which is used to represent the action 'lie', representing one player challenging the previous call
             self.lie_action,
-            # These indicate the halfway point of the public game state tensor which is where info is given about from who's perspective we are given the information
-            self.cur_index,
+            # This is the index in the private tensor which indicates whether these are the dice or player 0 or player 1
             self.pri_index,
+            # This is the index in state which indicates whose turn it is
+            self.player_info_index,
             # Same as public_state_length_per_player (will figure out why separate variable later)
             self.D_PUB_PER_PLAYER,
         ) = calculate_arguments(d1, d2, sides)
@@ -47,8 +49,9 @@ class Game:
         # roll is a list of integers
         assert player in [0, 1]
         priv = torch.zeros(self.public_state_length_per_player)
+        # Final node in priv tensor represents whether this is the hand of player 0 or 1
         priv[self.pri_index] = player
-        # New method inspired by Chinese poker paper
+        # New method inspired by Chinese poker paper for representing the player's dice in a "6 × 'number of dice' one-hot representation"
         cnt = Counter(roll)
         for face, c in cnt.items():
             for i in range(c):
@@ -57,14 +60,47 @@ class Game:
 
     def make_state(self):
         state = torch.zeros(self.public_state_length)
-        state[self.cur_index] = 1
-        pdb.set_trace()
+        state[self.player_info_index] = 0
+        return state
+    
+    def rolls(self, player):
+        assert player in [0, 1]
+        n_dice = self.d1 if player == 0 else self.d2
+        # Generates array of all possible arrays of dice rolls for n_dice
+        return [
+            tuple(sorted(r))
+            for r in itertools.product(range(1, self.sides + 1), repeat=n_dice)
+        ]
+    
+    def get_player_turn(self, state):
+        # Whose turn is it?
+        return int(state[self.player_info_index])
+    
+    def apply_action(self, state, action):
+        new_state = state.clone()
+        self._apply_action(new_state, action)
+        return new_state
+
+    def _apply_action(self, state, action):
+        player_next_to_act = self.get_player_turn(state)
+        print(player_next_to_act)
+        state[action + player_next_to_act * self.D_PUB_PER_PLAYER] = 1
+        state[self.player_info_index] = 1 - state[self.player_info_index]
         return state
 
 game = Game(5, 5, 6)
-roll = [1, 2, 4, 4]
-game.make_priv(roll, 1)
-game.make_state()
+
+roll1 = game.rolls(0)[23]
+roll2 = game.rolls(1)[43]
+
+game.make_priv(roll1, 0)
+game.make_priv(roll2, 1)
+
+state = game.make_state()
+state = game.apply_action(state, 29)
+
+pdb.set_trace()
+
 
 
 
