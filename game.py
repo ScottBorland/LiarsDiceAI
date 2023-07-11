@@ -10,8 +10,8 @@ from collections import Counter
 def calculate_arguments(d1, d2, sides):
     max_call = (d1 + d2) * sides
 
-    public_state_length = (max_call + 1) * 2
-    public_state_length_per_player = max(d1, d2) * sides + 1
+    public_state_length = (max_call) * 2 + 1
+    public_state_length_per_player = max_call
     n_actions = max_call + 1
     lie_action = max_call
     # cur_index = max_call
@@ -93,31 +93,58 @@ class Game:
         )
         player_0_calls =  (player_0_call_range == 1).nonzero(as_tuple=True)[0].tolist()
         player_1_call_range = (
-            state[self.public_state_length_per_player : self.lie_action]
+            state[self.public_state_length_per_player : self.public_state_length_per_player  * 2]
         )
         player_1_calls =  (player_1_call_range == 1).nonzero(as_tuple=True)[0].tolist()
         return player_0_calls, player_1_calls
 
-    # def get_last_call(self, state):
-    #     ids = self.get_calls(state)
-    #     if not ids:
-    #         return -1
-    #     return int(ids[-1])
+    def get_last_call(self, state):
+        ids = self.get_calls(state)
+        if not ids:
+            return -1
+        else:
+            if(len(ids[0]) > len(ids[1])):
+                return int(ids[0][-1])
+            else:
+                return int(ids[1][-1])
+    
+    def evaluate_call(self, r1, r2, last_call):
+        # Players have rolled r1, and r2.
+        # Previous actions are `state`
+        # Player `caller` just called lie. (This is not included in last_call)
+        # Returns True if the call is good, false otherwise
+
+        # Calling lie immediately is an error, so we pretend the
+        # last call was good to punish the player.
+        if last_call == -1:
+            return True
+
+        n, d = divmod(last_call, self.sides)
+        n, d = n + 1, d + 1  # (0, 0) means 1 of 1s
+
+        cnt = Counter(r1 + r2)
+        actual = cnt[d]
+
+        return actual >= n
 
 # For testing purposes:
-game = Game(5, 5, 6)
+game = Game(1, 1, 6)
 
-roll1 = game.rolls(0)[23]
-roll2 = game.rolls(1)[43]
+roll1 = game.rolls(0)[1]
+roll2 = game.rolls(1)[2]
 
-game.make_priv(roll1, 0)
-game.make_priv(roll2, 1)
+print(roll1)
+print(roll2)
+
+privs = (game.make_priv(roll1, 0), game.make_priv(roll2, 1))
 
 state = game.make_state()
-state = game.apply_action(state, 29)
+state = game.apply_action(state, 1)
 state = game.apply_action(state, 2)
-state = game.apply_action(state, 15)
-state = game.apply_action(state, 22)
+state = game.apply_action(state, 3)
+state = game.apply_action(state, 1)
+lastCall = game.get_last_call(state)
+eval = game.evaluate_call(roll1, roll2, lastCall)
 calls = game.get_calls(state)
 
 pdb.set_trace()
