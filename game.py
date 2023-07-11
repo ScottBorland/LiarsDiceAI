@@ -17,9 +17,8 @@ def calculate_arguments(d1, d2, sides):
     # cur_index = max_call
     pri_index = max(d1, d2) * sides
     player_info_index = public_state_length - 1
-    D_PUB_PER_PLAYER = max_call + 1
 
-    return public_state_length, public_state_length_per_player, n_actions, lie_action, pri_index, player_info_index, D_PUB_PER_PLAYER
+    return public_state_length, public_state_length_per_player, n_actions, lie_action, pri_index, player_info_index
 
 class Game:
     def __init__(self, d1, d2, sides):
@@ -41,8 +40,6 @@ class Game:
             self.pri_index,
             # This is the index in state which indicates whose turn it is
             self.player_info_index,
-            # Same as public_state_length_per_player (will figure out why separate variable later)
-            self.D_PUB_PER_PLAYER,
         ) = calculate_arguments(d1, d2, sides)
 
     def make_priv(self, roll, player):
@@ -127,28 +124,33 @@ class Game:
 
         return actual >= n
 
+# Utility functions  
+def convert_call_to_action_integer(n, d):
+    # Of the form such that if you are calling '3 5s', n is 3, d is 5
+    # Action ranges from 0 to the maximum call and represents the index in the pytorch tensor that will be set to 1 to represent the call
+    action = (n - 1) * 6 + (d - 1)
+    return action 
+
+def convert_action_to_call(action):
+        # Action is an integer
+        for d in range (6):
+            d += 1
+            n = (action + 7 - d) / 6
+            if(n.is_integer()):
+                return (n, d)
+        return (0, 0)
+
 # For testing purposes:
-game = Game(1, 1, 6)
+game = Game(5, 5, 6)
+# r1 = random.choice(list(game.rolls(0)))
+# r2 = random.choice(list(game.rolls(1)))
+# privs = [game.make_priv(r1, 0), game.make_priv(r2, 1)]
+# state = game.make_state()
 
-roll1 = game.rolls(0)[1]
-roll2 = game.rolls(1)[2]
-
-print(roll1)
-print(roll2)
-
-privs = (game.make_priv(roll1, 0), game.make_priv(roll2, 1))
-
-state = game.make_state()
-state = game.apply_action(state, 1)
-state = game.apply_action(state, 2)
-state = game.apply_action(state, 3)
-state = game.apply_action(state, 1)
-lastCall = game.get_last_call(state)
-eval = game.evaluate_call(roll1, roll2, lastCall)
-calls = game.get_calls(state)
-
+# pdb.set_trace()
+action = convert_call_to_action_integer(1, 6)
+call = convert_action_to_call(action)
 pdb.set_trace()
-
 
 
 
