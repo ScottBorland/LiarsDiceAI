@@ -97,13 +97,20 @@ class Game:
 
     def get_last_call(self, state):
         ids = self.get_calls(state)
-        if not ids:
+        pdb.set_trace()
+        if not ids or (len(ids[0]) and len(ids[1])) == 0:
             return -1
         else:
             if(len(ids[0]) > len(ids[1])):
-                return int(ids[0][-1])
+                if(len(ids[0]) == 1):
+                    return int(ids[0][0])
+                else:
+                    return int(ids[0][-1])
             else:
-                return int(ids[1][-1])
+                if(len(ids[1]) == 1):
+                    return int(ids[1][0])
+                else:
+                    return int(ids[1][-1])
     
     def evaluate_call(self, r1, r2, last_call):
         # Players have rolled r1, and r2.
@@ -123,6 +130,29 @@ class Game:
         actual = cnt[d]
 
         return actual >= n
+    
+    def get_legal_calls(self, state):
+    # Returns a list of action integers representing legal next moves
+        lastCall = self.get_last_call(state)
+        legal_actions = []
+        for i in range (lastCall + 1, self.lie_action + 1):
+            legal_actions.append(i)
+        return legal_actions
+
+    def play_random_round(self):
+        r1 = random.choice(list(self.rolls(0)))
+        r2 = random.choice(list(self.rolls(1)))
+        privs = [self.make_priv(r1, 0), self.make_priv(r2, 1)]
+        state = self.make_state()
+
+        self.makeRandomMove(state)
+
+    def makeRandomMove(self, state):
+        player = self.get_player_turn(state)
+        possible_moves = self.get_legal_calls(state)
+        selected_move = random.choice(list(possible_moves))
+        print(selected_move)
+
 
 # Utility functions  
 def convert_call_to_action_integer(n, d):
@@ -140,17 +170,25 @@ def convert_action_to_call(action):
                 return (n, d)
         return (0, 0)
 
+
+
 # For testing purposes:
 game = Game(5, 5, 6)
+game.play_random_round()
 # r1 = random.choice(list(game.rolls(0)))
 # r2 = random.choice(list(game.rolls(1)))
 # privs = [game.make_priv(r1, 0), game.make_priv(r2, 1)]
 # state = game.make_state()
 
-# pdb.set_trace()
-action = convert_call_to_action_integer(1, 6)
-call = convert_action_to_call(action)
-pdb.set_trace()
+# player = game.get_player_turn(state)
+# lastCall = game.get_last_call(state)
+# possible_moves = game.get_legal_calls(state)
+# selected_move = random.choice(list(possible_moves))
+# print(selected_move)
+
+# #game.makeRandomMove(state)
+# #game.play_random_round()
+
 
 
 
