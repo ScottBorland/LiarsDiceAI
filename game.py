@@ -25,8 +25,13 @@ class Game:
         # Number of dice that player one and player two start with
         self.d1 = d1
         self.d2 = d2
+        # Lists containing dice of each player
+        self.r1 = []
+        self.r2 = []
         # Number of sides on each die (default is 6)
         self.sides = sides
+        # Keeps track of whether game is in progress
+        self.game_in_progress = True
         (
             # Length of tensor needed to represent the public game state which is a pytorch tensor representing calls that have been made
             self.public_state_length,
@@ -79,10 +84,22 @@ class Game:
         return new_state
 
     def _apply_action(self, state, action):
+        if (action == self.lie_action):
+            self.lie_called(state)
         player_next_to_act = self.get_player_turn(state)
         state[action + player_next_to_act * self.public_state_length_per_player] = 1
         state[self.player_info_index] = 1 - state[self.player_info_index]
         return state
+    
+    def lie_called(self, state):
+        self.game_in_progress = False
+        last_call = self.get_last_call(state)
+        player_who_called_lie = 1 - self.get_player_turn(state)
+        other_player = self.get_player_turn(state)
+        if(self.evaluate_call(self.r1, self.r2, last_call)):
+            print("The last bid was true! Player " + str(player_who_called_lie) + " wins!")
+        else:
+            print("The last bid was false! Player " + str(other_player) + " wins!")
     
     def get_calls(self, state):
         player_0_call_range = (
@@ -97,7 +114,6 @@ class Game:
 
     def get_last_call(self, state):
         ids = self.get_calls(state)
-        pdb.set_trace()
         if not ids or (len(ids[0]) and len(ids[1])) == 0:
             return -1
         else:
@@ -139,20 +155,21 @@ class Game:
             legal_actions.append(i)
         return legal_actions
 
-    def play_random_round(self):
-        r1 = random.choice(list(self.rolls(0)))
-        r2 = random.choice(list(self.rolls(1)))
-        privs = [self.make_priv(r1, 0), self.make_priv(r2, 1)]
+    def play_random_game(self):
+        self.game_in_progress = True
+        self.r1 = random.choice(list(self.rolls(0)))
+        self.r2 = random.choice(list(self.rolls(1)))
+        privs = [self.make_priv(self.r1, 0), self.make_priv(self.r2, 1)]
         state = self.make_state()
-
-        self.makeRandomMove(state)
+        while self.game_in_progress == True:
+            self.makeRandomMove(state)
+        pdb.set_trace()
 
     def makeRandomMove(self, state):
         player = self.get_player_turn(state)
         possible_moves = self.get_legal_calls(state)
         selected_move = random.choice(list(possible_moves))
-        print(selected_move)
-
+        state = self.apply_action(state, selected_move)
 
 # Utility functions  
 def convert_call_to_action_integer(n, d):
@@ -171,10 +188,9 @@ def convert_action_to_call(action):
         return (0, 0)
 
 
-
 # For testing purposes:
 game = Game(5, 5, 6)
-game.play_random_round()
+game.play_random_game()
 # r1 = random.choice(list(game.rolls(0)))
 # r2 = random.choice(list(game.rolls(1)))
 # privs = [game.make_priv(r1, 0), game.make_priv(r2, 1)]
