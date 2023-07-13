@@ -10,8 +10,8 @@ from collections import Counter
 def calculate_arguments(d1, d2, sides):
     max_call = (d1 + d2) * sides
 
-    public_state_length = (max_call) * 2 + 1
-    public_state_length_per_player = max_call
+    public_state_length = (max_call + 1) * 2 + 1
+    public_state_length_per_player = max_call + 1
     n_actions = max_call + 1
     lie_action = max_call
     # cur_index = max_call
@@ -84,17 +84,16 @@ class Game:
         return new_state
 
     def _apply_action(self, state, action):
+        player_next_to_act = self.get_player_turn(state)
+        state[action + player_next_to_act * self.public_state_length_per_player] = 1
+        state[self.player_info_index] = 1 - state[self.player_info_index]
         if (action == self.lie_action):
-            self.lie_called(state)
-        else:
-            player_next_to_act = self.get_player_turn(state)
-            state[action + player_next_to_act * self.public_state_length_per_player] = 1
-            state[self.player_info_index] = 1 - state[self.player_info_index]
+            last_call = self.get_last_call(state)
+            self.lie_called(state, last_call)
         return state
     
-    def lie_called(self, state):
+    def lie_called(self, state, last_call):
         self.game_in_progress = False
-        last_call = self.get_last_call(state)
         player_who_called_lie = 1 - self.get_player_turn(state)
         other_player = self.get_player_turn(state)
         if(self.evaluate_call(self.r1, self.r2, last_call)):
@@ -121,7 +120,7 @@ class Game:
             #or (len(ids[0]) and len(ids[1]))
             return -1
         if (len(ids[0]) == 0):
-            return 0
+            return -1
         else:
             if(len(ids[0]) > len(ids[1])):
                 return int(ids[0][-1])
@@ -164,10 +163,9 @@ class Game:
         state = self.make_state()
         while self.game_in_progress == True:
             state = self.make_random_move(state)
-        # for i in range(6):
-        #     state = self.makeRandomMove(state)
         calls = self.get_calls(state)
         print(calls)
+       
 
     def make_random_move(self, state):
         player = self.get_player_turn(state)
@@ -206,9 +204,13 @@ game.play_random_game()
 # privs = [game.make_priv(game.r1, 0), game.make_priv(game.r2, 1)]
 # state = game.make_state()
 
-# state = game.apply_action(state, 1)
-# legalActions = game.get_legal_calls(state)
-# print(legalActions)
+# state = game.make_random_move(state)
+# state = game.apply_action(state, 6)
+# lieAction = game.lie_action
+# state = game.apply_action(state, lieAction)
+# calls = game.get_calls(state)
+# print(calls)
+# pdb.set_trace()
 # state = game.apply_action(state, 0)
 # legalActions2 = game.get_legal_calls(state)
 # print(legalActions2)
