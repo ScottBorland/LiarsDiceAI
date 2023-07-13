@@ -86,9 +86,10 @@ class Game:
     def _apply_action(self, state, action):
         if (action == self.lie_action):
             self.lie_called(state)
-        player_next_to_act = self.get_player_turn(state)
-        state[action + player_next_to_act * self.public_state_length_per_player] = 1
-        state[self.player_info_index] = 1 - state[self.player_info_index]
+        else:
+            player_next_to_act = self.get_player_turn(state)
+            state[action + player_next_to_act * self.public_state_length_per_player] = 1
+            state[self.player_info_index] = 1 - state[self.player_info_index]
         return state
     
     def lie_called(self, state):
@@ -110,23 +111,22 @@ class Game:
             state[self.public_state_length_per_player : self.public_state_length_per_player  * 2]
         )
         player_1_calls =  (player_1_call_range == 1).nonzero(as_tuple=True)[0].tolist()
+        #pdb.set_trace()
         return player_0_calls, player_1_calls
 
     def get_last_call(self, state):
         ids = self.get_calls(state)
-        if not ids or (len(ids[0]) and len(ids[1])) == 0:
+        #pdb.set_trace()
+        if not ids:
+            #or (len(ids[0]) and len(ids[1]))
             return -1
+        if (len(ids[0]) == 0):
+            return 0
         else:
             if(len(ids[0]) > len(ids[1])):
-                if(len(ids[0]) == 1):
-                    return int(ids[0][0])
-                else:
-                    return int(ids[0][-1])
+                return int(ids[0][-1])
             else:
-                if(len(ids[1]) == 1):
-                    return int(ids[1][0])
-                else:
-                    return int(ids[1][-1])
+                return int(ids[1][-1])
     
     def evaluate_call(self, r1, r2, last_call):
         # Players have rolled r1, and r2.
@@ -150,6 +150,7 @@ class Game:
     def get_legal_calls(self, state):
     # Returns a list of action integers representing legal next moves
         lastCall = self.get_last_call(state)
+        #pdb.set_trace()
         legal_actions = []
         for i in range (lastCall + 1, self.lie_action + 1):
             legal_actions.append(i)
@@ -162,14 +163,20 @@ class Game:
         privs = [self.make_priv(self.r1, 0), self.make_priv(self.r2, 1)]
         state = self.make_state()
         while self.game_in_progress == True:
-            self.makeRandomMove(state)
-        pdb.set_trace()
+            state = self.make_random_move(state)
+        # for i in range(6):
+        #     state = self.makeRandomMove(state)
+        calls = self.get_calls(state)
+        print(calls)
 
-    def makeRandomMove(self, state):
+    def make_random_move(self, state):
         player = self.get_player_turn(state)
         possible_moves = self.get_legal_calls(state)
         selected_move = random.choice(list(possible_moves))
+        # print("Selected move: " + str(selected_move))
+        # print("Player : " + str(player))
         state = self.apply_action(state, selected_move)
+        return state
 
 # Utility functions  
 def convert_call_to_action_integer(n, d):
@@ -190,21 +197,30 @@ def convert_action_to_call(action):
 
 # For testing purposes:
 game = Game(5, 5, 6)
+#pdb.set_trace()
 game.play_random_game()
-# r1 = random.choice(list(game.rolls(0)))
-# r2 = random.choice(list(game.rolls(1)))
-# privs = [game.make_priv(r1, 0), game.make_priv(r2, 1)]
+
+# game.game_in_progress = True
+# game.r1 = random.choice(list(game.rolls(0)))
+# game.r2 = random.choice(list(game.rolls(1)))
+# privs = [game.make_priv(game.r1, 0), game.make_priv(game.r2, 1)]
 # state = game.make_state()
 
-# player = game.get_player_turn(state)
-# lastCall = game.get_last_call(state)
-# possible_moves = game.get_legal_calls(state)
-# selected_move = random.choice(list(possible_moves))
-# print(selected_move)
-
-# #game.makeRandomMove(state)
-# #game.play_random_round()
-
+# state = game.apply_action(state, 1)
+# legalActions = game.get_legal_calls(state)
+# print(legalActions)
+# state = game.apply_action(state, 0)
+# legalActions2 = game.get_legal_calls(state)
+# print(legalActions2)
+# state = game.apply_action(state, 18)
+# legalActions3 = game.get_legal_calls(state)
+# print(legalActions3)
+# state = game.apply_action(state, 58)
+# legalActions4 = game.get_legal_calls(state)
+# print(legalActions4)
+# state = game.apply_action(state, 59)
+# legalActions5 = game.get_legal_calls(state)
+# print(legalActions5)
 
 
 
