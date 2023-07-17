@@ -32,6 +32,10 @@ class Game:
         self.sides = sides
         # Keeps track of whether game is in progress
         self.game_in_progress = True
+        # Set when one player challenges
+        self.player_who_called_lie = ""
+        # Set when one player wins the game
+        self.winner = ""
         (
             # Length of tensor needed to represent the public game state which is a pytorch tensor representing calls that have been made
             self.public_state_length,
@@ -94,12 +98,14 @@ class Game:
     
     def lie_called(self, state, last_call):
         self.game_in_progress = False
-        player_who_called_lie = 1 - self.get_player_turn(state)
+        self.player_who_called_lie = 1 - self.get_player_turn(state)
         other_player = self.get_player_turn(state)
         if(self.evaluate_call(self.r1, self.r2, last_call)):
-            print("The last bid was true! Player " + str(player_who_called_lie) + " wins!")
+            #print("The last bid was true! Player " + str(self.player_who_called_lie) + " wins!")
+            self.winner = self.player_who_called_lie
         else:
-            print("The last bid was false! Player " + str(other_player) + " wins!")
+            #print("The last bid was false! Player " + str(other_player) + " wins!")
+            self.winner = other_player
     
     def get_calls(self, state):
         player_0_call_range = (
@@ -149,7 +155,6 @@ class Game:
     def get_legal_calls(self, state):
     # Returns a list of action integers representing legal next moves
         lastCall = self.get_last_call(state)
-        #pdb.set_trace()
         legal_actions = []
         for i in range (lastCall + 1, self.lie_action + 1):
             legal_actions.append(i)
@@ -164,8 +169,39 @@ class Game:
         while self.game_in_progress == True:
             state = self.make_random_move(state)
         calls = self.get_calls(state)
-        print(calls)
-       
+        self.showGameInformation(self.r1, self.r2, calls)
+    
+    def showGameInformation(self, r1, r2, calls):
+        # Print out the dice of each player to the console along with a list of the calls made throughout the game and the final winner
+        print("Player 1 Dice: " + str(r1))
+        print("Player 2 Dice: " + str(r2))
+        player0callsList = []
+        player1callsList = []
+        for action in calls[0]:
+            call = convert_action_to_call(action)
+            player0callsList.append(call)
+        for action in calls[1]:
+            call = convert_action_to_call(action)
+            player1callsList.append(call)
+        turn = 0
+    
+        for x in range(len(player0callsList)):
+            if(turn == 0):
+                print("Player 1 bids: "  + str(player0callsList[x][0]) + " " + str(player0callsList[x][1]) + "s")
+            else:
+                if((x + 1) > len(player1callsList)):
+                    print('break')
+                    break
+                else:
+                    print("Player 2 bids: "  + str(player1callsList[x][0]) + " " + str(player1callsList[x][1]) + "s")
+            turn = 1 - turn
+
+        print("Player " + str(self.player_who_called_lie) +  " calls lie!")
+        if(self.player_who_called_lie == self.winner):
+            print("The last bid was true! Player " + str(self.player_who_called_lie + 1) + " wins!")
+        else:
+            otherPlayer = 1 - int(self.player_who_called_lie)
+            print("The last bid was false! Player " + str(otherPlayer + 1) + " wins!")
 
     def make_random_move(self, state):
         player = self.get_player_turn(state)
@@ -185,13 +221,14 @@ def convert_call_to_action_integer(n, d):
 
 def convert_action_to_call(action):
         # Action is an integer
+        call = [0, 0]
         for d in range (6):
             d += 1
             n = (action + 7 - d) / 6
             if(n.is_integer()):
-                return (n, d)
-        return (0, 0)
-
+                call[0] = int(n)
+                call[1] = d
+        return call
 
 # For testing purposes:
 game = Game(5, 5, 6)
