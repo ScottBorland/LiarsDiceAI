@@ -21,13 +21,15 @@ def calculate_arguments(d1, d2, sides):
     return public_state_length, public_state_length_per_player, n_actions, lie_action, pri_index, player_info_index
 
 class Game:
-    def __init__(self, d1, d2, sides):
+    def __init__(self, d1, d2, sides, model="none"):
         # Number of dice that player one and player two start with
         self.d1 = d1
         self.d2 = d2
         # Lists containing dice of each player
         self.r1 = []
         self.r2 = []
+        # Reference to neural network being used for training
+        self.model = model
         # Number of sides on each die (default is 6)
         self.sides = sides
         # Keeps track of whether game is in progress
@@ -63,6 +65,48 @@ class Game:
             for i in range(c):
                 priv[(face - 1) * max(self.d1, self.d1) + i] = 1    
         return priv
+
+    def sample_action(self, priv, state, last_call, eps):
+        pi = self.policy(priv, state, last_call, eps)
+        action = next(iter(torch.utils.data.WeightedRandomSampler(pi, num_samples=1)))
+        return action + last_call + 1
+
+    def policy(self, priv, state, last_call, eps=0):
+        regrets = self.make_regrets(priv, state, last_call)
+        #pdb.set_trace()
+        if(len(regrets) == 0):
+            print(self.lie_action)
+            print(priv, state, last_call)
+        else:
+            for i in range(len(regrets)):
+                regrets[i] += eps
+            if sum(regrets) <= 0:
+                return [1 / len(regrets)] * len(regrets)
+            else:
+                s = sum(regrets)
+                return [r / s for r in regrets]
+
+    def make_regrets(self, priv, state, last_call):
+        
+        # if priv[self.pri_index] != state[self.player_info_index]:
+        #     print("Warning: Regrets are not with respect to current player")
+    
+        # Number of child nodes
+        num_actions = self.n_actions - last_call - 1
+        
+
+        # One for the current state, and one for each child
+        batch = state.repeat(num_actions + 1, 1)
+
+        for i in range(num_actions):
+            self._apply_action(batch[i + 1], i + last_call + 1)
+
+        priv_batch = priv.repeat(num_actions + 1, 1)
+
+        v, *vs = list(self.model(priv_batch, batch))
+        return [max(vi - v, 0) for vi in vs]
+        # The Hedge method
+        # return [math.exp(10*(vi - v)) for vi in vs]
 
     def make_state(self):
         state = torch.zeros(self.public_state_length)
@@ -117,6 +161,10 @@ class Game:
         )
         player_1_calls =  (player_1_call_range == 1).nonzero(as_tuple=True)[0].tolist()
         #pdb.set_trace()
+        if(len(player_0_calls) == 0):
+            player_0_calls.append(-1)
+        if (len(player_1_calls) == 0):
+            player_1_calls.append(-1)
         return player_0_calls, player_1_calls
 
     def get_last_call(self, state):
@@ -169,9 +217,9 @@ class Game:
         while self.game_in_progress == True:
             state = self.make_random_move(state)
         calls = self.get_calls(state)
-        self.showGameInformation(self.r1, self.r2, calls)
+        self.show_game_information(self.r1, self.r2, calls)
     
-    def showGameInformation(self, r1, r2, calls):
+    def show_game_information(self, r1, r2, calls):
         # Print out the dice of each player to the console along with a list of the calls made throughout the game and the final winner
         print("Player 1 Dice: " + str(r1))
         print("Player 2 Dice: " + str(r2))
@@ -233,13 +281,17 @@ def convert_action_to_call(action):
 # For testing purposes:
 game = Game(5, 5, 6)
 #pdb.set_trace()
-game.play_random_game()
+#game.play_random_game()
 
-# game.game_in_progress = True
-# game.r1 = random.choice(list(game.rolls(0)))
-# game.r2 = random.choice(list(game.rolls(1)))
-# privs = [game.make_priv(game.r1, 0), game.make_priv(game.r2, 1)]
-# state = game.make_state()
+
+
+game.game_in_progress = True
+game.r1 = random.choice(list(game.rolls(0)))
+game.r2 = random.choice(list(game.rolls(1)))
+privs = [game.make_priv(game.r1, 0), game.make_priv(game.r2, 1)]
+state = game.make_state()
+
+#pdb.set_trace()
 
 # state = game.make_random_move(state)
 # state = game.apply_action(state, 6)
