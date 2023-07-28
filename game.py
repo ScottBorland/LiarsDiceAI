@@ -269,14 +269,20 @@ def convert_call_to_action_integer(n, d):
 
 def convert_action_to_call(action):
         # Action is an integer
-        call = [0, 0]
-        for d in range (6):
-            d += 1
-            n = (action + 7 - d) / 6
-            if(n.is_integer()):
-                call[0] = int(n)
-                call[1] = d
-        return call
+        # Old method
+        # call = [0, 0]
+        # for d in range (6):
+        #     d += 1
+        #     n = (action + 7 - d) / 6
+        #     if(n.is_integer()):
+        #         call[0] = int(n)
+        #         call[1] = d
+        # return call
+
+        # New method
+        n, d = divmod(action)
+        call = (n + 1, d + 1)
+        return(call)
 
 # For testing purposes:
 game = Game(5, 5, 6)

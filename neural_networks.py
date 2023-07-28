@@ -79,19 +79,19 @@ def play(r1, r2, replay_buffer):
     privs = [game.make_priv(r1, 0).to(device), game.make_priv(r2, 1).to(device)]
 
     def play_inner(state):
+        #pdb.set_trace()
         cur = game.get_player_turn(state)
         calls = game.get_calls(state)
-        if calls and (calls[0][-1] or calls[1][-1]) == game.lie_action:
-            if len(calls) < 3:
+        if calls and ((calls[0][-1] == game.lie_action or calls[1][-1] == game.lie_action)):
+            if len(calls[0]) < 3:
                 prev_call = -1
             else:
                 if(len(calls[0]) > len(calls[1])):
-                    prev_call = calls[1][-1]
+                    prev_call = calls[1][-2]
                 else:
                     prev_call = calls[0][-2]
             # If prev_call is good it mean we won (because our opponent called lie)
             res = 1 if game.evaluate_call(r1, r2, prev_call) else -1
-
         else:
             if calls:
                 if(len(calls[0]) > len(calls[1])):
@@ -104,7 +104,7 @@ def play(r1, r2, replay_buffer):
             new_state = game.apply_action(state, action)
             # Just classic min/max stuff
             res = -play_inner(new_state)
-
+        
         # Save the result from the perspective of both sides
         replay_buffer.append((privs[cur], state, res))
         replay_buffer.append((privs[1 - cur], state, -res))
@@ -127,7 +127,7 @@ def print_strategy(state):
             rs /= rs.sum()
         strat = []
         for action, prob in enumerate(rs):
-            n, d = divmod(action, game.SIDES)
+            n, d = divmod(action, game.sides)
             n, d = n + 1, d + 1
             if d == 1:
                 strat.append(f"{n}:")
@@ -160,7 +160,7 @@ def train():
     scheduler = ReciLR(optimizer, gamma=0.5)
     value_loss = torch.nn.MSELoss()
     all_rolls = list(itertools.product(game.rolls(0), game.rolls(1)))
-    for t in range(100_000):
+    for t in range(1000):
         replay_buffer = []
 
         BS = 100  # Number of rolls to include
