@@ -20,6 +20,25 @@ def calculate_arguments(d1, d2, sides):
 
     return public_state_length, public_state_length_per_player, n_actions, lie_action, pri_index, player_info_index
 
+class NetConcat(torch.nn.Module):
+    def __init__(self, d_pri, d_pub):
+        super().__init__()
+
+        hiddens = (500, 400, 300, 200, 100)
+
+        layers = [torch.nn.Linear(d_pri + d_pub, hiddens[0]), torch.nn.ReLU()]
+        for size0, size1 in zip(hiddens, hiddens[1:]):
+            layers += [torch.nn.Linear(size0, size1), torch.nn.ReLU()]
+        layers += [torch.nn.Linear(hiddens[-1], 1), nn.Tanh()]
+        self.seq = nn.Sequential(*layers)
+
+    def forward(self, priv, pub):
+        if len(priv.shape) == 1:
+            joined = torch.cat((priv, pub), dim=0)
+        else:
+            joined = torch.cat((priv, pub), dim=1)
+        return self.seq(joined)
+
 class Game:
     def __init__(self, d1, d2, sides, model="none"):
         # Number of dice that player one and player two start with

@@ -10,8 +10,8 @@ import os
 from game import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("d1", type=int, help="Number of dice for player 1")
-parser.add_argument("d2", type=int, help="Number of dice for player 2")
+parser.add_argument("d1", type=int, nargs='?', default=5, help="Number of dice for player 1")
+parser.add_argument("d2", type=int, nargs='?', default=5, help="Number of dice for player 2")
 parser.add_argument("--sides", type=int, default=6, help="Number of sides on the dice")
 parser.add_argument(
     "--eps", type=float, default=1e-2, help="Added to regrets for exploration"
@@ -29,25 +29,6 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-
-class NetConcat(torch.nn.Module):
-    def __init__(self, d_pri, d_pub):
-        super().__init__()
-
-        hiddens = (500, 400, 300, 200, 100)
-
-        layers = [torch.nn.Linear(d_pri + d_pub, hiddens[0]), torch.nn.ReLU()]
-        for size0, size1 in zip(hiddens, hiddens[1:]):
-            layers += [torch.nn.Linear(size0, size1), torch.nn.ReLU()]
-        layers += [torch.nn.Linear(hiddens[-1], 1), nn.Tanh()]
-        self.seq = nn.Sequential(*layers)
-
-    def forward(self, priv, pub):
-        if len(priv.shape) == 1:
-            joined = torch.cat((priv, pub), dim=0)
-        else:
-            joined = torch.cat((priv, pub), dim=1)
-        return self.seq(joined)
 
 # Check if there is a model we should continue training
 if os.path.isfile(args.path):
@@ -214,5 +195,4 @@ def train():
                 f"{args.path}.cp{t+1}",
             )
 
-
-train()
+# train()

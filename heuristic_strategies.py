@@ -45,6 +45,6 @@ def calc_expected_frequency_of_number(number, num_dice):
     if(number == 1):
         expected_frequency = num_dice * 1/6
     else:
-        expected_frequency= num_dice * 1/3
+        expected_frequency = num_dice * 1/3
 
     return expected_frequency
