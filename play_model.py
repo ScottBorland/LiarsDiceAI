@@ -55,6 +55,8 @@ class Robot:
 
     def get_action(self, state):
         last_call = game.get_last_call(state)
+        calls_ = game.get_calls(state)
+        print(calls_)
         return game.sample_action(self.priv, state, last_call, eps=0)
 
     def __repr__(self):

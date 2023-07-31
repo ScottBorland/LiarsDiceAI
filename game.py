@@ -195,7 +195,7 @@ class Game:
         if (len(ids[0]) == 0):
             return -1
         else:
-            if(len(ids[0]) > len(ids[1])):
+            if(len(ids[0]) > len(ids[1])) or (ids[1][-1] == -1):
                 return int(ids[0][-1])
             else:
                 return int(ids[1][-1])
