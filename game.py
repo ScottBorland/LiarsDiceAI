@@ -215,8 +215,7 @@ class Game:
         n, d = n + 1, d + 1  # (0, 0) means 1 of 1s
 
         cnt = Counter(r1 + r2)
-        actual = cnt[d]
-
+        actual = cnt[d] + cnt[1] if d != 1 else cnt[d]
         return actual >= n
     
     def get_legal_calls(self, state):

@@ -75,7 +75,7 @@ def play(r1, r2, replay_buffer):
             res = 1 if game.evaluate_call(r1, r2, prev_call) else -1
         else:
             if calls:
-                if(len(calls[0]) > len(calls[1])):
+                if(len(calls[0]) > len(calls[1]) or (calls[1][-1] == -1)):
                     last_call = int(calls[0][-1])
                 else:
                     last_call = int(calls[1][-1])
@@ -113,10 +113,10 @@ def print_strategy(state):
             if d == 1:
                 strat.append(f"{n}:")
             strat.append(f"{prob:.2f}")
-        print(r1, f"{float(v):.4f}".rjust(7), f"({cnt})", " ".join(strat))
+#        print(r1, f"{float(v):.4f}".rjust(7), f"({cnt})", " ".join(strat))
         total_v += v
         total_cnt += cnt
-    print(f"Mean value: {total_v / total_cnt}")
+#    print(f"Mean value: {total_v / total_cnt}")
 
 
 class ReciLR(torch.optim.lr_scheduler._LRScheduler):
@@ -195,4 +195,4 @@ def train():
                 f"{args.path}.cp{t+1}",
             )
 
-# train()
+train()
