@@ -10,8 +10,8 @@ import os
 from game import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("d1", type=int, nargs='?', default=5, help="Number of dice for player 1")
-parser.add_argument("d2", type=int, nargs='?', default=5, help="Number of dice for player 2")
+parser.add_argument("d1", type=int, default=1, help="Number of dice for player 1")
+parser.add_argument("d2", type=int, default=1, help="Number of dice for player 2")
 parser.add_argument("--sides", type=int, default=6, help="Number of sides on the dice")
 parser.add_argument(
     "--eps", type=float, default=1e-2, help="Added to regrets for exploration"
@@ -25,7 +25,7 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1e-3, help="LR = lr/t")
 parser.add_argument("--w", type=float, default=1e-2, help="weight decay")
 parser.add_argument(
-    "--path", type=str, default="model.pt", help="Where to save checkpoints"
+    "--path", type=str, default="model1v1-4.pt", help="Where to save checkpoints"
 )
 
 args = parser.parse_args()
@@ -63,16 +63,24 @@ def play(r1, r2, replay_buffer):
         #pdb.set_trace()
         cur = game.get_player_turn(state)
         calls = game.get_calls(state)
-        if calls and ((calls[0][-1] == game.lie_action or calls[1][-1] == game.lie_action)):
-            if len(calls[0]) < 3:
+        # if calls and ((calls[0][-1] == game.lie_action or calls[1][-1] == game.lie_action)):
+        #     if len(calls[0]) < 3:
+        #         prev_call = -1
+        #     else:
+        #         if(len(calls[0]) > len(calls[1])):
+        #             prev_call = calls[1][-2]
+        #         else:
+        #             prev_call = calls[0][-2]
+        if calls and (calls[0][-1] == game.lie_action):
+            if len(calls[0]) > 2:
                 prev_call = -1
             else:
-                if(len(calls[0]) > len(calls[1])):
-                    prev_call = calls[1][-2]
-                else:
-                    prev_call = calls[0][-2]
-            # If prev_call is good it mean we won (because our opponent called lie)
+                prev_call = calls[1][-1]
             res = 1 if game.evaluate_call(r1, r2, prev_call) else -1
+        elif calls and (calls[1][-1] == game.lie_action):
+                prev_call = calls[0][-1]
+             # If prev_call is good it mean we won (because our opponent called lie)
+                res = 1 if game.evaluate_call(r1, r2, prev_call) else -1
         else:
             if calls:
                 if(len(calls[0]) > len(calls[1]) or (calls[1][-1] == -1)):
@@ -113,10 +121,10 @@ def print_strategy(state):
             if d == 1:
                 strat.append(f"{n}:")
             strat.append(f"{prob:.2f}")
-#        print(r1, f"{float(v):.4f}".rjust(7), f"({cnt})", " ".join(strat))
+        print(r1, f"{float(v):.4f}".rjust(7), f"({cnt})", " ".join(strat))
         total_v += v
         total_cnt += cnt
-#    print(f"Mean value: {total_v / total_cnt}")
+    print(f"Mean value: {total_v / total_cnt}")
 
 
 class ReciLR(torch.optim.lr_scheduler._LRScheduler):

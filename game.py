@@ -92,18 +92,13 @@ class Game:
 
     def policy(self, priv, state, last_call, eps=0):
         regrets = self.make_regrets(priv, state, last_call)
-        #pdb.set_trace()
-        if(len(regrets) == 0):
-            print(self.lie_action)
-            print(priv, state, last_call)
+        for i in range(len(regrets)):
+            regrets[i] += eps
+        if sum(regrets) <= 0:
+            return [1 / len(regrets)] * len(regrets)
         else:
-            for i in range(len(regrets)):
-                regrets[i] += eps
-            if sum(regrets) <= 0:
-                return [1 / len(regrets)] * len(regrets)
-            else:
-                s = sum(regrets)
-                return [r / s for r in regrets]
+            s = sum(regrets)
+            return [r / s for r in regrets]
 
     def make_regrets(self, priv, state, last_call):
         
@@ -112,8 +107,6 @@ class Game:
     
         # Number of child nodes
         num_actions = self.n_actions - last_call - 1
-        
-
         # One for the current state, and one for each child
         batch = state.repeat(num_actions + 1, 1)
 
@@ -151,12 +144,15 @@ class Game:
         return new_state
 
     def _apply_action(self, state, action):
-        player_next_to_act = self.get_player_turn(state)
-        state[action + player_next_to_act * self.public_state_length_per_player] = 1
+        cur_player = self.get_player_turn(state)
         state[self.player_info_index] = 1 - state[self.player_info_index]
+
         if (action == self.lie_action):
             last_call = self.get_last_call(state)
             self.lie_called(state, last_call)
+
+        state[action + cur_player * self.public_state_length_per_player] = 1
+ 
         return state
     
     def lie_called(self, state, last_call):
