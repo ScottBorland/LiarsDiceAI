@@ -10,8 +10,8 @@ import os
 from game import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("d1", type=int, default=1, help="Number of dice for player 1")
-parser.add_argument("d2", type=int, default=1, help="Number of dice for player 2")
+parser.add_argument("d1", type=int, default=5, help="Number of dice for player 1")
+parser.add_argument("d2", type=int, default=5, help="Number of dice for player 2")
 parser.add_argument("--sides", type=int, default=6, help="Number of sides on the dice")
 parser.add_argument(
     "--eps", type=float, default=1e-2, help="Added to regrets for exploration"
@@ -25,7 +25,7 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1e-3, help="LR = lr/t")
 parser.add_argument("--w", type=float, default=1e-2, help="weight decay")
 parser.add_argument(
-    "--path", type=str, default="model1v1-4.pt", help="Where to save checkpoints"
+    "--path", type=str, default="model2v2_2.pt", help="Where to save checkpoints"
 )
 
 args = parser.parse_args()
@@ -149,7 +149,7 @@ def train():
     scheduler = ReciLR(optimizer, gamma=0.5)
     value_loss = torch.nn.MSELoss()
     all_rolls = list(itertools.product(game.rolls(0), game.rolls(1)))
-    for t in range(1000):
+    for t in range(30000):
         replay_buffer = []
 
         BS = 100  # Number of rolls to include

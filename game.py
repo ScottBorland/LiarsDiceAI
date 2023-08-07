@@ -40,7 +40,7 @@ class NetConcat(torch.nn.Module):
         return self.seq(joined)
 
 class Game:
-    def __init__(self, d1, d2, sides, model="none"):
+    def __init__(self, d1, d2, sides, model="none", model_2="none"):
         # Number of dice that player one and player two start with
         self.d1 = d1
         self.d2 = d2
@@ -49,6 +49,8 @@ class Game:
         self.r2 = []
         # Reference to neural network being used for training
         self.model = model
+        # Used for when AIs are playing against each other
+        self.model_2 = model_2
         # Number of sides on each die (default is 6)
         self.sides = sides
         # Keeps track of whether game is in progress
@@ -239,6 +241,7 @@ class Game:
         print("Player 2 Dice: " + str(r2))
         player0callsList = []
         player1callsList = []
+
         for action in calls[0]:
             call = convert_action_to_call(action)
             player0callsList.append(call)
@@ -258,7 +261,7 @@ class Game:
                     print("Player 2 bids: "  + str(player1callsList[x][0]) + " " + str(player1callsList[x][1]) + "s")
             turn = 1 - turn
 
-        print("Player " + str(self.player_who_called_lie) +  " calls lie!")
+        print("Player " + str(self.player_who_called_lie + 1) +  " calls lie!")
         if(self.player_who_called_lie == self.winner):
             print("The last bid was true! Player " + str(self.player_who_called_lie + 1) + " wins!")
         else:
@@ -273,6 +276,11 @@ class Game:
         # print("Player : " + str(player))
         state = self.apply_action(state, selected_move)
         return state
+    
+    def choose_random_move(self, state):
+        possible_moves = self.get_legal_calls(state)
+        selected_move = random.choice(list(possible_moves))
+        return selected_move
 
 # Utility functions  
 def convert_call_to_action_integer(n, d):
@@ -292,46 +300,14 @@ def convert_action_to_call(action):
         #         call[0] = int(n)
         #         call[1] = d
         # return call
-
-        # New method
-        n, d = divmod(action)
-        call = (n + 1, d + 1)
+        if(action < 1):
+            call = (0, 0)
+        else:
+            # New method
+            n, d = divmod(action, 6)
+            call = (n + 1, d + 1)
         return(call)
 
-# For testing purposes:
-game = Game(5, 5, 6)
-#pdb.set_trace()
-#game.play_random_game()
-
-
-
-game.game_in_progress = True
-game.r1 = random.choice(list(game.rolls(0)))
-game.r2 = random.choice(list(game.rolls(1)))
-privs = [game.make_priv(game.r1, 0), game.make_priv(game.r2, 1)]
-state = game.make_state()
-
-#pdb.set_trace()
-
-# state = game.make_random_move(state)
-# state = game.apply_action(state, 6)
-# lieAction = game.lie_action
-# state = game.apply_action(state, lieAction)
-# calls = game.get_calls(state)
-# print(calls)
-# pdb.set_trace()
-# state = game.apply_action(state, 0)
-# legalActions2 = game.get_legal_calls(state)
-# print(legalActions2)
-# state = game.apply_action(state, 18)
-# legalActions3 = game.get_legal_calls(state)
-# print(legalActions3)
-# state = game.apply_action(state, 58)
-# legalActions4 = game.get_legal_calls(state)
-# print(legalActions4)
-# state = game.apply_action(state, 59)
-# legalActions5 = game.get_legal_calls(state)
-# print(legalActions5)
 
 
 
