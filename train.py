@@ -25,7 +25,7 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1e-3, help="LR = lr/t")
 parser.add_argument("--w", type=float, default=1e-2, help="weight decay")
 parser.add_argument(
-    "--path", type=str, default="model2v2_2.pt", help="Where to save checkpoints"
+    "--path", type=str, default="model1v1.pt", help="Where to save checkpoints"
 )
 
 args = parser.parse_args()
@@ -55,55 +55,54 @@ if checkpoint is not None:
 device = torch.device("cpu")
 model.to(device)
 
+p1_WIN = 1
+p1_LOSE = -1
+
 @torch.no_grad()
 def play(r1, r2, replay_buffer):
     privs = [game.make_priv(r1, 0).to(device), game.make_priv(r2, 1).to(device)]
 
     def play_inner(state):
-        #pdb.set_trace()
-        cur = game.get_player_turn(state)
+        current_player = game.get_player_turn(state)
         calls = game.get_calls(state)
-        # if calls and ((calls[0][-1] == game.lie_action or calls[1][-1] == game.lie_action)):
-        #     if len(calls[0]) < 3:
-        #         prev_call = -1
-        #     else:
-        #         if(len(calls[0]) > len(calls[1])):
-        #             prev_call = calls[1][-2]
-        #         else:
-        #             prev_call = calls[0][-2]
-        if calls and (calls[0][-1] == game.lie_action):
-            if len(calls[0]) > 2:
-                prev_call = -1
+      
+        def lie_called_on_first_action(calls):
+            if calls[0][-1] == game.lie_action and len(calls[0]) == 1:
+                return True
+            else: return False
+        
+        def lie_called(calls):
+            if calls[0][-1] or calls[1][-1] == game.lie_action:
+                return True
+            else: return False
+
+        if lie_called_on_first_action(calls): res = p1_LOSE
+        elif lie_called(calls):
+            if current_player == 0:
+                prev_call = game.get_last_call(state)
             else:
-                prev_call = calls[1][-1]
-            res = 1 if game.evaluate_call(r1, r2, prev_call) else -1
-        elif calls and (calls[1][-1] == game.lie_action):
-                prev_call = calls[0][-1]
-             # If prev_call is good it mean we won (because our opponent called lie)
-                res = 1 if game.evaluate_call(r1, r2, prev_call) else -1
+                prev_call = game.get_last_call(state)
+            res = p1_WIN if game.evaluate_call(r1, r2, prev_call) else p1_LOSE
         else:
-            if calls:
-                if(len(calls[0]) > len(calls[1]) or (calls[1][-1] == -1)):
-                    last_call = int(calls[0][-1])
-                else:
-                    last_call = int(calls[1][-1])
+            if current_player == 0:
+                last_call = game.get_last_call(state)
             else:
-                last_call = -1
-            action = game.sample_action(privs[cur], state, last_call, args.eps)
+                last_call = game.get_last_call(state)
+
+            action = game.sample_action(privs[current_player], state, last_call, args.eps)
             new_state = game.apply_action(state, action)
-            # Just classic min/max stuff
+            # Repeat function until game is concluded
             res = -play_inner(new_state)
         
         # Save the result from the perspective of both sides
-        replay_buffer.append((privs[cur], state, res))
-        replay_buffer.append((privs[1 - cur], state, -res))
+        replay_buffer.append((privs[current_player], state, res))
+        replay_buffer.append((privs[1 - current_player], state, -res))
 
         return res
 
     with torch.no_grad():
         state = game.make_state().to(device)
         play_inner(state)
-
 
 def print_strategy(state):
     total_v = 0
@@ -125,6 +124,7 @@ def print_strategy(state):
         total_v += v
         total_cnt += cnt
     print(f"Mean value: {total_v / total_cnt}")
+    return state
 
 
 class ReciLR(torch.optim.lr_scheduler._LRScheduler):
@@ -142,6 +142,14 @@ class ReciLR(torch.optim.lr_scheduler._LRScheduler):
         return [
             base_lr / (self.last_epoch + 1) ** self.gamma for base_lr in self.base_lrs
         ]
+    
+def parse_strategy(strategy):
+    strat = [][]
+    index = 0
+    for i in strategy:
+        if ':' in i:
+            index = index + 1
+        strat[index].append
 
 
 def train():
@@ -173,7 +181,8 @@ def train():
 
         if t % 5 == 0:
             with torch.no_grad():
-                print_strategy(game.make_state().to(device))
+                strategy = print_strategy(game.make_state().to(device))
+                parse_strategy(strategy)
 
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
@@ -181,7 +190,7 @@ def train():
         optimizer.step()
         scheduler.step()
 
-        if (t + 1) % 10 == 0:
+        if (t + 1) % 200 == 0:
             print(f"Saving to {args.path}")
             torch.save(
                 {

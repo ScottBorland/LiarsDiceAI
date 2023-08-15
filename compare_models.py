@@ -68,14 +68,14 @@ def run_game(game1, game2):
             cur = 1 - cur
     return scores 
 
-model_1, model_2 = load_models("C:/Users/Scott/documents/liarsdice/main/model2v2.pt", "C:/Users/Scott/documents/liarsdice/main/model2v2_2.pt")
+model_1, model_2 = load_models("C:/Users/Scott/documents/liarsdice/main/model5v5_2.pt.cp9000", "C:/Users/Scott/documents/liarsdice/main/model5v5_2.pt")
 
-game_1 = Game(2, 2, 6, model_1)
-game_2 = Game(2, 2, 6, model_2)
+game_1 = Game(5, 5, 6, model_1)
+game_2 = Game(5, 5, 6, model_2)
 
 total_scores = [0, 0]
-for i in range(500):
+for i in range(1000):
     s0, s1 = run_game(game_1, game_2)
     total_scores[0] += s0
     total_scores[1] += s1
-print(total_scores)
+pdb.set_trace()
