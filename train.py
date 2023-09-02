@@ -9,6 +9,9 @@ import os
 
 from game import *
 
+import numpy as np
+import json
+
 parser = argparse.ArgumentParser()
 parser.add_argument("d1", type=int, default=5, help="Number of dice for player 1")
 parser.add_argument("d2", type=int, default=5, help="Number of dice for player 2")
@@ -25,7 +28,7 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1e-3, help="LR = lr/t")
 parser.add_argument("--w", type=float, default=1e-2, help="weight decay")
 parser.add_argument(
-    "--path", type=str, default="model1v1.pt", help="Where to save checkpoints"
+    "--path", type=str, default="models/model5v5_2", help="Where to save checkpoints"
 )
 
 args = parser.parse_args()
@@ -107,6 +110,7 @@ def play(r1, r2, replay_buffer):
 def print_strategy(state):
     total_v = 0
     total_cnt = 0
+    strats = []
     for r1, cnt in sorted(Counter(game.rolls(0)).items()):
         priv = game.make_priv(r1, 0).to(device)
         v = model(priv, state)
@@ -123,9 +127,19 @@ def print_strategy(state):
         print(r1, f"{float(v):.4f}".rjust(7), f"({cnt})", " ".join(strat))
         total_v += v
         total_cnt += cnt
+        strat.append(r1)
+        strats.append(strat)
     print(f"Mean value: {total_v / total_cnt}")
-    return state
+    return strats
 
+def write_to_json(strat, roll):
+    strat['roll'] = roll
+    # Writing to strategy.json
+    with open("strategy.json", "r+") as file:
+        file_data = json.load(file)
+        file_data["strategy"].append(strat)
+        file.seek(0)
+        json.dump(file_data, file, indent = 4)
 
 class ReciLR(torch.optim.lr_scheduler._LRScheduler):
     def __init__(self, optimizer, gamma=1, last_epoch=-1, verbose=False):
@@ -143,14 +157,23 @@ class ReciLR(torch.optim.lr_scheduler._LRScheduler):
             base_lr / (self.last_epoch + 1) ** self.gamma for base_lr in self.base_lrs
         ]
     
-def parse_strategy(strategy):
-    strat = [][]
-    index = 0
-    for i in strategy:
-        if ':' in i:
-            index = index + 1
-        strat[index].append
-
+def parse_strategy(strategies):
+    for strategy in strategies:
+        roll = strategy.pop()
+        result_dictionary = {}
+        key = '-1'
+        for i, item in enumerate(strategy):
+            if ":" in item:
+                if key != '-1':
+                    result_dictionary[key] = probabilities
+                key = item
+                probabilities = []
+            else:
+                probabilities.append(item)
+                if i == (len(strategy) - 1):
+                    result_dictionary[key] = probabilities
+        write_to_json(result_dictionary, roll)      
+    return result_dictionary, roll
 
 def train():
     optimizer = torch.optim.AdamW(model.parameters(), weight_decay=args.w)
@@ -179,10 +202,11 @@ def train():
         loss = value_loss(y_pred, y)
         print(t, loss.item())
 
-        if t % 5 == 0:
+        if t % 10 == 0:
             with torch.no_grad():
                 strategy = print_strategy(game.make_state().to(device))
-                parse_strategy(strategy)
+                data_to_visualise = parse_strategy(strategy)
+                # visualise_strategy(data_to_visualise, roll)
 
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
