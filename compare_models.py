@@ -68,7 +68,7 @@ def run_game(game1, game2):
             cur = 1 - cur
     return scores 
 
-model_1, model_2 = load_models("C:/Users/Scott/documents/liarsdice/main/models/model5v5_2.pt.cp10000", "C:/Users/Scott/documents/liarsdice/main/models/model5v5_2.pt.cp10000")
+model_1, model_2 = load_models("C:/Users/Scott/documents/liarsdice/main/models/model5v5_new.cp30000", "C:/Users/Scott/documents/liarsdice/main/models/model5v5_new.cp60000")
 
 game_1 = Game(5, 5, 6, model_1)
 game_2 = Game(5, 5, 6, model_2)

@@ -15,10 +15,30 @@ def calculate_arguments(d1, d2, sides):
     n_actions = max_call + 1
     lie_action = max_call
     # cur_index = max_call
-    pri_index = max(d1, d2) * sides
+    pri_index = max_call
     player_info_index = public_state_length - 1
 
     return public_state_length, public_state_length_per_player, n_actions, lie_action, pri_index, player_info_index
+
+class NetCompBilin(torch.nn.Module):
+    def __init__(self, d_pri, d_pub):
+        super().__init__()
+
+        hiddens = (100,) * 4
+
+        middle = 500
+        self.layer_pri = torch.nn.Linear(d_pri, middle)
+        self.layer_pub = torch.nn.Linear(d_pub, middle)
+
+        layers = [torch.nn.ReLU(), torch.nn.Linear(middle, hiddens[0]), torch.nn.ReLU()]
+        for size0, size1 in zip(hiddens, hiddens[1:]):
+            layers += [torch.nn.Linear(size0, size1), torch.nn.ReLU()]
+        layers += [torch.nn.Linear(hiddens[-1], 1), nn.Tanh()]
+        self.seq = nn.Sequential(*layers)
+
+    def forward(self, priv, pub):
+        joined = self.layer_pri(priv) * self.layer_pub(pub)
+        return self.seq(joined)
 
 class NetConcat(torch.nn.Module):
     def __init__(self, d_pri, d_pub):
@@ -40,7 +60,7 @@ class NetConcat(torch.nn.Module):
         return self.seq(joined)
 
 class Game:
-    def __init__(self, d1, d2, sides, model="none", model_2="none"):
+    def __init__(self, d1, d2, sides, model, model_2="none"):
         # Number of dice that player one and player two start with
         self.d1 = d1
         self.d2 = d2
@@ -94,6 +114,10 @@ class Game:
 
     def policy(self, priv, state, last_call, eps=0):
         regrets = self.make_regrets(priv, state, last_call)
+        if(len(regrets) == 0):
+            print("Error!")
+            import pdb
+            pdb.set_trace()
         for i in range(len(regrets)):
             regrets[i] += eps
         if sum(regrets) <= 0:
@@ -183,6 +207,22 @@ class Game:
         if (len(player_1_calls) == 0):
             player_1_calls.append(-1)
         return player_0_calls, player_1_calls
+    
+    def get_calls_as_one_list(self, state):
+        merged = (
+            state[: self.public_state_length_per_player]
+            + state[self.public_state_length_per_player : self.public_state_length_per_player * 2]
+        )
+        return (merged == 1).nonzero(as_tuple=True)[0].tolist()
+
+    def get_last_non_lie_call(self, state, current_player):
+        calls = self.get_calls(state)
+        if not calls:
+            return -1
+        if(len(calls[current_player]) == 0):
+            return -1
+        else:
+            return int(calls[current_player][-1])
 
     def get_last_call(self, state):
         ids = self.get_calls(state)
@@ -290,16 +330,6 @@ def convert_call_to_action_integer(n, d):
     return action 
 
 def convert_action_to_call(action):
-        # Action is an integer
-        # Old method
-        # call = [0, 0]
-        # for d in range (6):
-        #     d += 1
-        #     n = (action + 7 - d) / 6
-        #     if(n.is_integer()):
-        #         call[0] = int(n)
-        #         call[1] = d
-        # return call
         if(action < 1):
             call = (0, 0)
         else:

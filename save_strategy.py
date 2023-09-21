@@ -21,7 +21,8 @@ parser.add_argument("--sides", type=int, default=6, help="Number of sides on the
 args = parser.parse_args()
 
 public_state_length, public_state_length_per_player, *_ = calculate_arguments(args.d1, args.d2, args.sides)
-model = NetConcat(public_state_length_per_player, public_state_length)
+#model = NetConcat(public_state_length_per_player, public_state_length)
+model = NetCompBilin(public_state_length_per_player, public_state_length)
 game = Game(args.d1, args.d2, args.sides, model)
 
 def run_simulations():

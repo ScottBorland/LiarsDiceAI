@@ -7,6 +7,7 @@ import math
 from collections import Counter
 import argparse
 import re
+import json
 
 from game import *
 
@@ -20,6 +21,7 @@ train_args = checkpoint["args"]
 public_state_length, public_state_length_per_player, *_ = calculate_arguments(
     train_args.d1, train_args.d2, train_args.sides
 )
+#model = NetCompBilin(public_state_length_per_player, public_state_length)
 model = NetConcat(public_state_length_per_player, public_state_length)
 model.load_state_dict(checkpoint["model_state_dict"])
 game = Game(train_args.d1, train_args.d2, train_args.sides, model)
@@ -55,8 +57,8 @@ class Robot:
 
     def get_action(self, state):
         last_call = game.get_last_call(state)
-        calls_ = game.get_calls(state)
-        print(calls_)
+        # calls_ = game.get_calls(state)
+        # print(calls_)
         return game.sample_action(self.priv, state, last_call, eps=0)
 
     def __repr__(self):
@@ -73,6 +75,59 @@ def repr_action(action):
     n, d = n + 1, d + 1
     return f"{n} {d}s"
 
+def print_ai_strategy(cur, state, privs, last_call, r1, r2):
+    strats = []
+    if(cur == 0):
+        priv = privs[0]
+        roll = r1
+    else:
+        priv = privs[1]
+        roll = r2
+    v = model(priv, state)
+    rs = torch.tensor(game.make_regrets(priv, state, last_call))
+    if rs.sum() != 0:
+            rs /= rs.sum()
+    strat = []
+    for action, prob in enumerate(rs):
+        if last_call > 0:
+            action += last_call + 1
+        n, d = divmod(action, game.sides)
+        n, d = n + 1, d + 1
+        if d == 1 or (action - last_call - 1 == 0):
+            strat.append(f"{n}:")
+        strat.append(f"{prob:.2f}")
+    strat.append(roll)
+    strats.append(strat)
+    return strats
+
+def parse_ai_strategy(strategies, path, last_call):
+    for strategy in strategies:
+        roll = strategy.pop()
+        result_dictionary = {}
+        key = '-1'
+        for i, item in enumerate(strategy):
+            if ":" in item:
+                if key != '-1':
+                    result_dictionary[key] = probabilities
+                key = item
+                probabilities = []
+            else:
+                probabilities.append(item)
+                if i == (len(strategy) - 1):
+                    result_dictionary[key] = probabilities
+        write_this_to_json(result_dictionary, roll, path, last_call)      
+    return result_dictionary, roll, last_call
+
+def write_this_to_json(strat, roll, path, last_call):
+    last_action = repr_action(last_call)
+    strat['roll'] = roll
+    strat['last call'] = last_action
+    # Writing to strategy.json
+    with open(path, "r+") as file:
+        file_data = json.load(file)
+        file_data["strategy"].append(strat)
+        file.seek(0)
+        json.dump(file_data, file, indent = 4)
 
 while True:
     while (ans := input("Do you want to go first? [y/n/r] ")) not in ["y", "n", "r"]:
@@ -94,9 +149,12 @@ while True:
 
     cur = 0
     while True:
+        last_call = game.get_last_call(state)
+        strategy = print_ai_strategy(cur, state, privs, last_call, r1, r2)
+        parse_ai_strategy(strategy, "games.json", last_call)
+
         action = players[cur].get_action(state)
-        print('Action: ' + str(action))
-        print(repr_action(action))
+       
         print(f"> The {players[cur]} called {repr_action(action)}!")
 
         if action == game.lie_action:

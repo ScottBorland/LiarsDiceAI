@@ -11,6 +11,7 @@ from game import *
 
 import numpy as np
 import json
+import pdb
 
 parser = argparse.ArgumentParser()
 parser.add_argument("d1", type=int, default=5, help="Number of dice for player 1")
@@ -28,13 +29,14 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1e-3, help="LR = lr/t")
 parser.add_argument("--w", type=float, default=1e-2, help="weight decay")
 parser.add_argument(
-    "--path", type=str, default="models/model5v5_2", help="Where to save checkpoints"
+    "--path", type=str, default="new_models/NC1v1", help="Where to save checkpoints"
 )
 
 args = parser.parse_args()
 
 # Check if there is a model we should continue training
 if os.path.isfile(args.path):
+    device = torch.device('cpu')
     checkpoint = torch.load(args.path)
     print(f"Using args from {args.path}")
     old_path = args.path
@@ -46,6 +48,7 @@ else:
 # Model : (private state, public state) -> value
 public_state_length, public_state_length_per_player, *_ = calculate_arguments(args.d1, args.d2, args.sides)
 model = NetConcat(public_state_length_per_player, public_state_length)
+#model = NetCompBilin(public_state_length_per_player, public_state_length)
 # model = Net(D_PRI, D_PUB)
 # model = Net2(D_PRI, D_PUB)
 game = Game(args.d1, args.d2, args.sides, model)
@@ -58,48 +61,30 @@ if checkpoint is not None:
 device = torch.device("cpu")
 model.to(device)
 
-p1_WIN = 1
-p1_LOSE = -1
-
 @torch.no_grad()
 def play(r1, r2, replay_buffer):
     privs = [game.make_priv(r1, 0).to(device), game.make_priv(r2, 1).to(device)]
-
+    
     def play_inner(state):
-        current_player = game.get_player_turn(state)
-        calls = game.get_calls(state)
-      
-        def lie_called_on_first_action(calls):
-            if calls[0][-1] == game.lie_action and len(calls[0]) == 1:
-                return True
-            else: return False
         
-        def lie_called(calls):
-            if calls[0][-1] or calls[1][-1] == game.lie_action:
-                return True
-            else: return False
+        cur = game.get_player_turn(state)
+        calls = game.get_calls_as_one_list(state)
+        assert cur == len(calls) % 2
 
-        if lie_called_on_first_action(calls): res = p1_LOSE
-        elif lie_called(calls):
-            if current_player == 0:
-                prev_call = game.get_last_call(state)
-            else:
-                prev_call = game.get_last_call(state)
-            res = p1_WIN if game.evaluate_call(r1, r2, prev_call) else p1_LOSE
+        if calls and calls[-1] == game.lie_action:
+            prev_call = calls[-2] if len(calls) >= 2 else -1
+            # If prev_call is good it mean we won (because our opponent called lie)
+            res = 1 if game.evaluate_call(r1, r2, prev_call) else -1
+
         else:
-            if current_player == 0:
-                last_call = game.get_last_call(state)
-            else:
-                last_call = game.get_last_call(state)
-
-            action = game.sample_action(privs[current_player], state, last_call, args.eps)
+            last_call = calls[-1] if calls else -1
+            action = game.sample_action(privs[cur], state, last_call, args.eps)
             new_state = game.apply_action(state, action)
-            # Repeat function until game is concluded
+            # Just classic min/max stuff
             res = -play_inner(new_state)
-        
-        # Save the result from the perspective of both sides
-        replay_buffer.append((privs[current_player], state, res))
-        replay_buffer.append((privs[1 - current_player], state, -res))
+
+        replay_buffer.append((privs[cur], state, res))
+        replay_buffer.append((privs[1 - cur], state, -res))
 
         return res
 
@@ -132,10 +117,10 @@ def print_strategy(state):
     print(f"Mean value: {total_v / total_cnt}")
     return strats
 
-def write_to_json(strat, roll):
+def write_to_json(strat, roll, path):
     strat['roll'] = roll
     # Writing to strategy.json
-    with open("strategy.json", "r+") as file:
+    with open(path, "r+") as file:
         file_data = json.load(file)
         file_data["strategy"].append(strat)
         file.seek(0)
@@ -157,7 +142,7 @@ class ReciLR(torch.optim.lr_scheduler._LRScheduler):
             base_lr / (self.last_epoch + 1) ** self.gamma for base_lr in self.base_lrs
         ]
     
-def parse_strategy(strategies):
+def parse_strategy(strategies, path):
     for strategy in strategies:
         roll = strategy.pop()
         result_dictionary = {}
@@ -172,7 +157,7 @@ def parse_strategy(strategies):
                 probabilities.append(item)
                 if i == (len(strategy) - 1):
                     result_dictionary[key] = probabilities
-        write_to_json(result_dictionary, roll)      
+        write_to_json(result_dictionary, roll, path)      
     return result_dictionary, roll
 
 def train():
@@ -180,7 +165,7 @@ def train():
     scheduler = ReciLR(optimizer, gamma=0.5)
     value_loss = torch.nn.MSELoss()
     all_rolls = list(itertools.product(game.rolls(0), game.rolls(1)))
-    for t in range(30000):
+    for t in range(3000000):
         replay_buffer = []
 
         BS = 100  # Number of rolls to include
@@ -202,11 +187,11 @@ def train():
         loss = value_loss(y_pred, y)
         print(t, loss.item())
 
-        if t % 10 == 0:
-            with torch.no_grad():
-                strategy = print_strategy(game.make_state().to(device))
-                data_to_visualise = parse_strategy(strategy)
-                # visualise_strategy(data_to_visualise, roll)
+        # if t % 10 == 0:
+        #     with torch.no_grad():
+        #         strategy = print_strategy(game.make_state().to(device))
+                #data_to_visualise = parse_strategy(strategy)
+                #visualise_strategy(data_to_visualise, roll)
 
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
@@ -214,7 +199,7 @@ def train():
         optimizer.step()
         scheduler.step()
 
-        if (t + 1) % 200 == 0:
+        if (t + 1) % 300 == 0:
             print(f"Saving to {args.path}")
             torch.save(
                 {
